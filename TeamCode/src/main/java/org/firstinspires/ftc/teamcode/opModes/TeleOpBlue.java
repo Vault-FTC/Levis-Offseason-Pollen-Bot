@@ -51,9 +51,11 @@ public class TeleOpBlue extends LinearOpMode {
             doIntake();
 
             // Shooters are always spinning with the gates closed. Right bumper: auto-aim, then open the
-            // gates and feed once both flywheels are at speed.
+            // gates and feed once both flywheels are at speed. Right trigger: same shot, no auto-aim.
             if (gamepad1.right_bumper) {
                 autoAim();   // adds a correction to rx
+                shooter.setState(Shooter.CaseModes.SHOOT);
+            } else if (gamepad1.right_trigger_pressed) {
                 shooter.setState(Shooter.CaseModes.SHOOT);
             } else {
                 shooter.setState(Shooter.CaseModes.SHOOT_GATE_CLOSED);
@@ -80,6 +82,7 @@ public class TeleOpBlue extends LinearOpMode {
                 double positionInCycle = System.currentTimeMillis() % 1000;
                 intake.setState(positionInCycle < 100 ? Intake.CaseModes.ON : Intake.CaseModes.OFF);
             }
+            shooter.setManualGateOpen(gamepad1.triangle || gamepad2.triangle);   // hold Triangle to force the gates open
 
             shooter.setTargetSpeeds(pollenTargetSpeed + pollenSpeedAdjustment, nectarTargetSpeed + nectarSpeedAdjustment);
             shooter.update();   // in SHOOT mode this overrides the intake state

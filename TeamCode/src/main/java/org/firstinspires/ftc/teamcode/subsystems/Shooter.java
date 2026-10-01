@@ -27,6 +27,7 @@ public class Shooter extends Subsystem {
     double kP = 0.02; //check this
     double kD = 0.0015; //check this
     CaseModes currentMode = CaseModes.OFF;
+    boolean manualGateOpen = false;
     boolean shootReady = false;   // latched once the flywheels reach speed in SHOOT; cleared when leaving SHOOT
     PIDFCoefficients pollenPIDF = new PIDFCoefficients(160, 0, 0, 15.5);
     PIDFCoefficients nectarPIDF = new PIDFCoefficients(300, 0, 0, 14.996);
@@ -56,11 +57,11 @@ public class Shooter extends Subsystem {
 //        double offset_by_distance = 0.0;
 //        distance = drivebase.distanceToGoal(drivebase.getPosition(), goal);
 //        setShooterSpeed(distanceToSpeed(distance));
+        boolean gateOpen = false;
         switch(currentMode){
             case OFF:
                 pollenShooter.setVelocity(0);
                 nectarShooter.setVelocity(0);
-                closeGate();
                 break;
             case SHOOT:
                 pollenShooter.setVelocity(pollenSpeed);
@@ -76,25 +77,34 @@ public class Shooter extends Subsystem {
                     shootReady = true;
                 }
                 if (shootReady) {
-                    openGate();
+                    gateOpen = true;
                     intake.setState(Intake.CaseModes.ON);
                     gamepad1.rumble(1000);
-                } else {
-                    closeGate();
                 }
                 break;
             case SHOOT_GATE_CLOSED:
                 pollenShooter.setVelocity(pollenSpeed);
                 nectarShooter.setVelocity(nectarSpeed);
-                closeGate();   // doesn't touch the intake, so the driver keeps manual intake control
+                // doesn't touch the intake, so the driver keeps manual intake control
                 break;
             case REVERSE:
-                openGate();
+                gateOpen = true;
                 intake.setState(Intake.CaseModes.REVERSE);
                 pollenShooter.setVelocity(-900);
                 nectarShooter.setVelocity(-900);
                 break;
         }
+        // The gates are written once per loop: open if the mode wants them open OR the driver is holding the manual override.
+        if (gateOpen || manualGateOpen) {
+            openGate();
+        } else {
+            closeGate();
+        }
+    }
+
+    /** Driver override: while true, the gates are held open regardless of the shooter mode or flywheel speed. */
+    public void setManualGateOpen(boolean open) {
+        manualGateOpen = open;
     }
 
     public void setState(CaseModes s) {
