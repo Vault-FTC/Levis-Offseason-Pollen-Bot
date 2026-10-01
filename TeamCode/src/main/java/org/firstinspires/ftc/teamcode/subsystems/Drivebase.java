@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.subsystems;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -10,12 +10,13 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.Auto.Location;
+import org.firstinspires.ftc.teamcode.autonomi.Location;
+import org.firstinspires.ftc.teamcode.commandSystem.Subsystem;
 
-public class Drivebase {
+public class Drivebase extends Subsystem {
 
     private final DcMotorEx frontLeftMotor, frontRightMotor, backLeftMotor, backRightMotor;
-    GoBildaPinpointDriver odo;
+    GoBildaPinpointDriver Pinpoint;
     double headingOffsetThingy;
 
     double modify_joystick_rotate = 0.0;
@@ -37,16 +38,14 @@ public class Drivebase {
         backRightMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
 // Reverse one side of motors if needed (depends on robot configuration)
-        frontLeftMotor.setDirection(DcMotorEx.Direction.FORWARD);
-        backLeftMotor.setDirection(DcMotorEx.Direction.FORWARD);
-        frontRightMotor.setDirection(DcMotorSimple.Direction.FORWARD);
-        backRightMotor.setDirection(DcMotorSimple.Direction.REVERSE);
+        frontLeftMotor.setDirection(DcMotorEx.Direction.REVERSE);
+        backLeftMotor.setDirection(DcMotorEx.Direction.REVERSE);
 // Odometry constants and such
-        odo = hardwareMap.get(GoBildaPinpointDriver.class,"odo");
+        Pinpoint = hardwareMap.get(GoBildaPinpointDriver.class,"pinpoint");
         //odo.setOffsets(205.71207, -15.175, DistanceUnit.MM);
-        odo.setOffsets(145.0, -4.0, DistanceUnit.MM);
-        odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
-        odo.setEncoderDirections(
+        Pinpoint.setOffsets(0.0, 31.5, DistanceUnit.MM); // x-pod 0 mm, y-pod 31.5 mm
+        Pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+        Pinpoint.setEncoderDirections(
                 GoBildaPinpointDriver.EncoderDirection.FORWARD,
                 GoBildaPinpointDriver.EncoderDirection.REVERSED);
         //  odo.resetPosAndIMU();
@@ -59,23 +58,23 @@ public class Drivebase {
         backRightMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
     }
     public void resetHeading(double headingDegrees) {
-        odo.setHeading(headingDegrees, AngleUnit.DEGREES);
+        Pinpoint.setHeading(headingDegrees, AngleUnit.DEGREES);
         //odo.resetPosAndIMU();
     }
 
     public Pose2D getPosition() {
-        return odo.getPosition();
+        return Pinpoint.getPosition();
     }
 
-    public GoBildaPinpointDriver getOdo()
+    public GoBildaPinpointDriver getPinpoint()
     {
-        return odo;
+        return Pinpoint;
     }
 
 
 
     public String getPositionTelemetry() {
-        return "X offset (forwards/backwards): " + odo.getPosX(DistanceUnit.CM) + " Y (left/right): " + odo.getPosY(DistanceUnit.CM) + " Heading: " + odo.getHeading(AngleUnit.DEGREES);
+        return "X offset (forwards/backwards): " + Pinpoint.getPosX(DistanceUnit.CM) + " Y (left/right): " + Pinpoint.getPosY(DistanceUnit.CM) + " Heading: " + Pinpoint.getHeading(AngleUnit.DEGREES);
     }
 
     public void updateAutoAim(double joystick_rx_modifier)
@@ -88,8 +87,14 @@ public class Drivebase {
         drive(forward, right, rotate + modify_joystick_rotate);
     }
 
+    // The robot's translation was coming out reversed (forward/back and left/right) with rotation correct,
+    // so the translation inputs are flipped here. Set to 1 if that's ever fixed at the source.
+    private static final double TRANSLATION_SIGN = -1;
+
     public void drive(double forward, double right, double rotate) {
-        double botHeading = -odo.getHeading(AngleUnit.RADIANS) + headingOffsetThingy;
+        forward *= TRANSLATION_SIGN;
+        right *= TRANSLATION_SIGN;
+        double botHeading = -Pinpoint.getHeading(AngleUnit.RADIANS) + headingOffsetThingy;
 //         X is positive up, Y is positive to the right
         double rotRight = right * Math.cos(botHeading) - forward * Math.sin(botHeading);
         double rotForward = right * Math.sin(botHeading) + forward * Math.cos(botHeading);
@@ -133,13 +138,13 @@ public class Drivebase {
     public void driveToPosition(Location target, double turnVal, Telemetry telemetry) {
         double p = 0.2; //0.1
         double p_rotation = 0.015;
-        double strafe = (target.Strafe - odo.getPosY(DistanceUnit.CM));
-        double forward = (-target.Forward + odo.getPosX(DistanceUnit.CM));
-        double heading = (target.TurnDegrees - odo.getHeading(AngleUnit.DEGREES));
+        double strafe = (target.Strafe - Pinpoint.getPosY(DistanceUnit.CM));
+        double forward = (-target.Forward + Pinpoint.getPosX(DistanceUnit.CM));
+        double heading = (target.TurnDegrees - Pinpoint.getHeading(AngleUnit.DEGREES));
 
-        double strafeError = (target.Strafe - odo.getPosY(DistanceUnit.CM));
-        double forwardError = (-target.Forward + odo.getPosX(DistanceUnit.CM));
-        double headingError = (target.TurnDegrees - odo.getHeading(AngleUnit.DEGREES));
+        double strafeError = (target.Strafe - Pinpoint.getPosY(DistanceUnit.CM));
+        double forwardError = (-target.Forward + Pinpoint.getPosX(DistanceUnit.CM));
+        double headingError = (target.TurnDegrees - Pinpoint.getHeading(AngleUnit.DEGREES));
 
 
         if (telemetry != null) {
@@ -185,9 +190,9 @@ public class Drivebase {
     }
 
     public boolean isAtPosition(Location target, double toleranceXY, double toleranceAngle) {
-        double currentX = odo.getPosX(DistanceUnit.CM);
-        double currentY = odo.getPosY(DistanceUnit.CM);
-        double currentHeading = odo.getHeading(AngleUnit.DEGREES);
+        double currentX = Pinpoint.getPosX(DistanceUnit.CM);
+        double currentY = Pinpoint.getPosY(DistanceUnit.CM);
+        double currentHeading = Pinpoint.getHeading(AngleUnit.DEGREES);
         return Math.abs(currentY - target.Strafe) < toleranceXY &&
                 Math.abs(currentX - target.Forward) < toleranceXY &&
                 Math.abs(currentHeading-target.TurnDegrees) < toleranceAngle;
@@ -195,7 +200,7 @@ public class Drivebase {
 
     public void setCurrentPose(Pose2D pos)
     {
-        odo.setPosition(pos);
+        Pinpoint.setPosition(pos);
     }
 
     public void setCurrentPose(double x, double y, double radians)
@@ -205,12 +210,12 @@ public class Drivebase {
 
     public void setCurrentPose(double x, double y)
     {
-        odo.setPosX(x, DistanceUnit.CM);
-        odo.setPosY(y, DistanceUnit.CM);
+        Pinpoint.setPosX(x, DistanceUnit.CM);
+        Pinpoint.setPosY(y, DistanceUnit.CM);
     }
 
     public void update() {
-        odo.update(); // updates the odometry internally
+        Pinpoint.update(); // updates the odometry internally
     }
 
     public static double distanceToGoal(Pose2D robot, Pose2D goal) {

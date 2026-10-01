@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Auto;
+package org.firstinspires.ftc.teamcode.autonomi;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -10,7 +10,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.teamcode.Drivebase;
+import org.firstinspires.ftc.teamcode.subsystems.Drivebase;
 
 @Autonomous
 public class Auto extends LinearOpMode {
@@ -28,7 +28,7 @@ public class Auto extends LinearOpMode {
         shooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pollenPIDF);
         intake.setDirection(DcMotorEx.Direction.REVERSE);
         transfer.setDirection(DcMotorEx.Direction.REVERSE);
-        odo = hardwareMap.get(GoBildaPinpointDriver.class,"odo");
+        odo = hardwareMap.get(GoBildaPinpointDriver.class,"pinpoint");
         waitForStart();
 
         while (opModeIsActive()) {
