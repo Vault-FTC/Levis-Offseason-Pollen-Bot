@@ -107,6 +107,11 @@ public class Shooter extends Subsystem {
         manualGateOpen = open;
     }
 
+    /** True once both flywheels have reached speed in SHOOT mode and the gates are open for feeding. */
+    public boolean isShootReady() {
+        return shootReady;
+    }
+
     public void setState(CaseModes s) {
         if (s != CaseModes.SHOOT) shootReady = false;
         currentMode = s; //currentMode = s??? what does that mean??

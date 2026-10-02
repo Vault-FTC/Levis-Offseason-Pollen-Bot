@@ -10,6 +10,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.FieldConstants;
 import org.firstinspires.ftc.teamcode.autonomi.Location;
 import org.firstinspires.ftc.teamcode.commandSystem.Subsystem;
 
@@ -46,7 +47,7 @@ public class Drivebase extends Subsystem {
         Pinpoint.setOffsets(0.0, 31.5, DistanceUnit.MM); // x-pod 0 mm, y-pod 31.5 mm
         Pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
         Pinpoint.setEncoderDirections(
-                GoBildaPinpointDriver.EncoderDirection.FORWARD,
+                GoBildaPinpointDriver.EncoderDirection.REVERSED,
                 GoBildaPinpointDriver.EncoderDirection.REVERSED);
         //  odo.resetPosAndIMU();
     }
@@ -74,7 +75,10 @@ public class Drivebase extends Subsystem {
 
 
     public String getPositionTelemetry() {
-        return "X offset (forwards/backwards): " + Pinpoint.getPosX(DistanceUnit.CM) + " Y (left/right): " + Pinpoint.getPosY(DistanceUnit.CM) + " Heading: " + Pinpoint.getHeading(AngleUnit.DEGREES);
+        return String.format("X: %.1f in  Y: %.1f in  Heading: %.1f deg",
+                Pinpoint.getPosX(FieldConstants.DISTANCE_UNIT),
+                Pinpoint.getPosY(FieldConstants.DISTANCE_UNIT),
+                Pinpoint.getHeading(AngleUnit.DEGREES));
     }
 
     public void updateAutoAim(double joystick_rx_modifier)
@@ -135,41 +139,48 @@ public class Drivebase extends Subsystem {
         backRightMotor.setPower(backRightPower);
     }
 
-    public void driveToPosition(Location target, double turnVal, Telemetry telemetry) {
-        double p = 0.2; //0.1
-        double p_rotation = 0.015;
-        double strafe = (target.Strafe - Pinpoint.getPosY(DistanceUnit.CM));
-        double forward = (-target.Forward + Pinpoint.getPosX(DistanceUnit.CM));
-        double heading = (target.TurnDegrees - Pinpoint.getHeading(AngleUnit.DEGREES));
+    // Gains for driveToPosition. Distances are in field inches (see FieldConstants).
+    private static final double DRIVE_P = 0.5;             // power per inch of error (was 0.2 per cm)
+    private static final double DRIVE_MIN_POWER = 0.25;    // enough to overcome friction
+    private static final double DRIVE_MAX_POWER = 0.4;
+    private static final double DRIVE_DEADBAND_IN = 1.2;   // below this, stop forcing min power (was 3 cm)
+    private static final double TURN_P = 0.015;            // power per degree of error
+    private static final double TURN_MAX_POWER = 0.4;
 
-        double strafeError = (target.Strafe - Pinpoint.getPosY(DistanceUnit.CM));
-        double forwardError = (-target.Forward + Pinpoint.getPosX(DistanceUnit.CM));
-        double headingError = (target.TurnDegrees - Pinpoint.getHeading(AngleUnit.DEGREES));
+    /**
+     * Drives in the field frame. xPower moves toward +X, yPower toward +Y, and ccwTurnPower turns
+     * counter-clockwise (heading increasing). This hides the sign conventions of drive():
+     * a positive "forward" argument there moves toward -X, a positive "right" argument moves
+     * toward +Y, and a positive rotate turns clockwise.
+     */
+    public void driveField(double xPower, double yPower, double ccwTurnPower) {
+        headingOffsetThingy = 0;   // field moves are absolute; drop any teleop stick offset
+        drive(-xPower, yPower, -ccwTurnPower);
+    }
 
+    /** Runs one control step toward a field target. Call every loop after update(). */
+    public void driveToPosition(Location target, Telemetry telemetry) {
+        double xError = target.x - Pinpoint.getPosX(FieldConstants.DISTANCE_UNIT);
+        double yError = target.y - Pinpoint.getPosY(FieldConstants.DISTANCE_UNIT);
+        double headingError = FieldConstants.normalizeDegrees(
+                target.headingDegrees - Pinpoint.getHeading(AngleUnit.DEGREES));
+        double distance = Math.hypot(xError, yError);
+
+        // Scale the whole translation vector, not each axis, so the robot drives in a straight line.
+        double speed = Math.min(distance * DRIVE_P, DRIVE_MAX_POWER);
+        if (distance > DRIVE_DEADBAND_IN) {
+            speed = Math.max(speed, DRIVE_MIN_POWER);
+        }
+        double xPower = distance > 1e-6 ? speed * xError / distance : 0;
+        double yPower = distance > 1e-6 ? speed * yError / distance : 0;
+        double turnPower = Math.max(Math.min(headingError * TURN_P, TURN_MAX_POWER), -TURN_MAX_POWER);
 
         if (telemetry != null) {
-            telemetry.addData("Target", "X: " + target.Strafe + "  Y: " + target.Forward);
+            telemetry.addData("Target", "X: %.1f  Y: %.1f  H: %.1f", target.x, target.y, target.headingDegrees);
+            telemetry.addData("Error", "X: %.1f  Y: %.1f  H: %.1f", xError, yError, headingError);
         }
 
-        double forwardPower = forward * p;
-        double strafePower = strafe * p;
-        double turnPower = heading * p_rotation;
-
-        double minPower = 0.25;
-        double maxPower = 0.4;
-
-        forwardPower = Math.max(Math.min(forwardPower, maxPower), -maxPower);
-        strafePower = Math.max(Math.min(strafePower, maxPower), -maxPower);
-
-        if (Math.abs(forwardPower) < minPower && Math.abs(forwardError) > 3) {
-            forwardPower = minPower * Math.signum(forwardError);
-        }
-        if (Math.abs(strafePower) < minPower && Math.abs(strafeError) > 3) {
-            strafePower = minPower * Math.signum(strafeError);
-        }
-
-        drive(forwardPower, strafePower, turnPower);
-
+        driveField(-xPower, -yPower, turnPower);
     }
     public void brake() {
         frontLeftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -186,16 +197,18 @@ public class Drivebase extends Subsystem {
     }
 
     public boolean isAtPosition(Location target) {
-        return isAtPosition(target, 15, 17.5);
+        return isAtPosition(target, 6, 17.5);
     }
 
+    /** toleranceXY is in field inches, toleranceAngle in degrees. */
     public boolean isAtPosition(Location target, double toleranceXY, double toleranceAngle) {
-        double currentX = Pinpoint.getPosX(DistanceUnit.CM);
-        double currentY = Pinpoint.getPosY(DistanceUnit.CM);
-        double currentHeading = Pinpoint.getHeading(AngleUnit.DEGREES);
-        return Math.abs(currentY - target.Strafe) < toleranceXY &&
-                Math.abs(currentX - target.Forward) < toleranceXY &&
-                Math.abs(currentHeading-target.TurnDegrees) < toleranceAngle;
+        double xError = target.x - Pinpoint.getPosX(FieldConstants.DISTANCE_UNIT);
+        double yError = target.y - Pinpoint.getPosY(FieldConstants.DISTANCE_UNIT);
+        double headingError = FieldConstants.normalizeDegrees(
+                target.headingDegrees - Pinpoint.getHeading(AngleUnit.DEGREES));
+        return Math.abs(xError) < toleranceXY &&
+                Math.abs(yError) < toleranceXY &&
+                Math.abs(headingError) < toleranceAngle;
     }
 
     public void setCurrentPose(Pose2D pos)
@@ -203,15 +216,17 @@ public class Drivebase extends Subsystem {
         Pinpoint.setPosition(pos);
     }
 
+    /** x and y in field inches. */
     public void setCurrentPose(double x, double y, double radians)
     {
-        setCurrentPose(new Pose2D(DistanceUnit.CM, x, y, AngleUnit.RADIANS, radians));
+        setCurrentPose(new Pose2D(FieldConstants.DISTANCE_UNIT, x, y, AngleUnit.RADIANS, radians));
     }
 
+    /** x and y in field inches. */
     public void setCurrentPose(double x, double y)
     {
-        Pinpoint.setPosX(x, DistanceUnit.CM);
-        Pinpoint.setPosY(y, DistanceUnit.CM);
+        Pinpoint.setPosX(x, FieldConstants.DISTANCE_UNIT);
+        Pinpoint.setPosY(y, FieldConstants.DISTANCE_UNIT);
     }
 
     public void update() {

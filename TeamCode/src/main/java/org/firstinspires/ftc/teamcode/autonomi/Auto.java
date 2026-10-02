@@ -1,76 +1,52 @@
 package org.firstinspires.ftc.teamcode.autonomi;
 
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
-import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.FieldConstants;
 import org.firstinspires.ftc.teamcode.subsystems.Drivebase;
+import org.firstinspires.ftc.teamcode.subsystems.PoseStorage;
 
 @Autonomous
 public class Auto extends LinearOpMode {
-    DcMotorEx intake = hardwareMap.get(DcMotorEx.class, "intake");
-    DcMotorEx transfer = hardwareMap.get(DcMotorEx.class, "transfer");
-    DcMotorEx shooter = hardwareMap.get(DcMotorEx.class, "shooter");
-    PIDFCoefficients pollenPIDF = new PIDFCoefficients(0.6, 0, 0, 14.2);
     Drivebase drivebase;
-    GoBildaPinpointDriver odo;
+
     @Override
     public void runOpMode() throws InterruptedException {
+        // Hardware must be looked up here, not in field initializers: hardwareMap is null until runOpMode.
+        drivebase = new Drivebase(hardwareMap);
 
-        shooter.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        shooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        shooter.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, pollenPIDF);
-        intake.setDirection(DcMotorEx.Direction.REVERSE);
-        transfer.setDirection(DcMotorEx.Direction.REVERSE);
-        odo = hardwareMap.get(GoBildaPinpointDriver.class,"pinpoint");
+        // Put the odometry in the shared field frame (inches, field center at (70, 70)).
+        drivebase.getPinpoint().resetPosAndIMU();
+        sleep(300);   // let the Pinpoint finish its IMU reset before we write a pose to it
+        Pose2D start = FieldConstants.START_POSE;
+        drivebase.setCurrentPose(start);
+        PoseStorage.currentPose = start;
+
+        // Target in field coordinates. This holds the starting pose, like the old (0, 0, 0) target did.
+        Location target = new Location(
+                start.getX(FieldConstants.DISTANCE_UNIT),
+                start.getY(FieldConstants.DISTANCE_UNIT),
+                start.getHeading(AngleUnit.DEGREES));
+
         waitForStart();
 
         while (opModeIsActive()) {
-            driveToPosition(new Location(0,0,0), 0,telemetry);
-        }
-    }
+            drivebase.update();   // without this the Pinpoint pose never changes
+            PoseStorage.currentPose = drivebase.getPosition();
 
+            if (drivebase.isAtPosition(target, 1, 2)) {
+                drivebase.drive(0, 0, 0);
+            } else {
+                drivebase.driveToPosition(target, telemetry);
+            }
 
-    public void driveToPosition(Location target, double turnVal, Telemetry telemetry) {
-        double p = 0.2; //0.1
-        double p_rotation = 0.015;
-        double strafe = (target.Strafe - odo.getPosY(DistanceUnit.CM));
-        double forward = (-target.Forward + odo.getPosX(DistanceUnit.CM));
-        double heading = (target.TurnDegrees - odo.getHeading(AngleUnit.DEGREES));
-
-        double strafeError = (target.Strafe - odo.getPosY(DistanceUnit.CM));
-        double forwardError = (-target.Forward + odo.getPosX(DistanceUnit.CM));
-        double headingError = (target.TurnDegrees - odo.getHeading(AngleUnit.DEGREES));
-
-
-        if (telemetry != null) {
-            telemetry.addData("Target", "X: " + target.Strafe + "  Y: " + target.Forward);
+            telemetry.addData("Position", drivebase.getPositionTelemetry());
+            telemetry.update();
         }
 
-        double forwardPower = forward * p;
-        double strafePower = strafe * p;
-        double turnPower = heading * p_rotation;
-
-        double minPower = 0.25;
-        double maxPower = 0.4;
-
-        forwardPower = Math.max(Math.min(forwardPower, maxPower), -maxPower);
-        strafePower = Math.max(Math.min(strafePower, maxPower), -maxPower);
-
-        if (Math.abs(forwardPower) < minPower && Math.abs(forwardError) > 3) {
-            forwardPower = minPower * Math.signum(forwardError);
-        }
-        if (Math.abs(strafePower) < minPower && Math.abs(strafeError) > 3) {
-            strafePower = minPower * Math.signum(strafeError);
-        }
-
-        drivebase.drive(forwardPower, strafePower, turnPower);
-
+        drivebase.drive(0, 0, 0);
     }
 }
