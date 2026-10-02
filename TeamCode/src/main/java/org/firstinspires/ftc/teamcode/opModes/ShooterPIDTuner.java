@@ -5,10 +5,12 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.hardware.Servo;
 
 /**
  * Tunes the pollen and nectar shooters at the same time. Both motors always run at their own target velocity;
  * Options selects which one the Cross/Square and D-Pad adjustments apply to.
+ * Left bumper runs the intake, left trigger runs it in reverse, and Share toggles the shooter gates open/closed.
  */
 @TeleOp
 public class ShooterPIDTuner extends OpMode {
@@ -31,7 +33,16 @@ public class ShooterPIDTuner extends OpMode {
         }
     }
 
+    // Gate positions copied from Shooter.openGate()/closeGate(); keep them in sync if those change.
+    static final double POLLEN_GATE_CLOSED = 0.1;
+    static final double POLLEN_GATE_OPEN = 0.2;
+    static final double NECTAR_GATE_CLOSED = 0.5;
+    static final double NECTAR_GATE_OPEN = 1.0;
+
     public DcMotorEx intake;
+    Servo pollenGate;
+    Servo nectarGate;
+    boolean gatesOpen = false;
     Flywheel pollen;
     Flywheel nectar;
     Flywheel selected;
@@ -47,6 +58,8 @@ public class ShooterPIDTuner extends OpMode {
         pollen = new Flywheel("Pollen", hardwareMap.get(DcMotorEx.class, "pollenShooter"));
         nectar = new Flywheel("Nectar", hardwareMap.get(DcMotorEx.class, "nectarShooter"));
         intake = hardwareMap.get(DcMotorEx.class, "intake");
+        pollenGate = hardwareMap.get(Servo.class, "pollenGate");
+        nectarGate = hardwareMap.get(Servo.class, "nectarGate");
         selected = pollen;
 
         for (Flywheel f : new Flywheel[]{pollen, nectar}) {
@@ -55,6 +68,7 @@ public class ShooterPIDTuner extends OpMode {
             f.apply();
         }
         intake.setDirection(DcMotorEx.Direction.REVERSE);
+        setGates(false);
         telemetry.addLine("Init Complete");
     }
 
@@ -94,12 +108,25 @@ public class ShooterPIDTuner extends OpMode {
             selected.P += pidStepSizes[pidStepIndex];
         }
 
-        // Feed a game piece so you're tuning under realistic load instead of spinning free.
-        intake.setPower(gamepad1.left_bumper ? 1 : 0);
+        // Share: toggle the gates open/closed (they stay where you leave them)
+        if (gamepad1.shareWasPressed()) {
+            setGates(!gatesOpen);
+        }
+
+        // Left bumper: intake in (feed a game piece so you're tuning under realistic load).
+        // Left trigger: outtake.
+        if (gamepad1.left_bumper) {
+            intake.setPower(1);
+        } else if (gamepad1.left_trigger_pressed) {
+            intake.setPower(-1);
+        } else {
+            intake.setPower(0);
+        }
 
         pollen.apply();
         nectar.apply();
 
+        telemetry.addData("Gates (Share to toggle)", gatesOpen ? "OPEN" : "closed");
         telemetry.addData("Selected (Options to switch)", selected.name);
         telemetry.addData("Velocity Step Size", "%.0f (Triangle to cycle, Cross +/Square -)", velocityStepSizes[velocityStepIndex]);
         telemetry.addData("PID Step Size", "%.4f (Circle button)", pidStepSizes[pidStepIndex]);
@@ -112,5 +139,11 @@ public class ShooterPIDTuner extends OpMode {
             telemetry.addData(f.name + " P (D-Pad U/D)", "%.4f", f.P);
             telemetry.addData(f.name + " F (D-Pad L/R)", "%.4f", f.F);
         }
+    }
+
+    private void setGates(boolean open) {
+        gatesOpen = open;
+        pollenGate.setPosition(open ? POLLEN_GATE_OPEN : POLLEN_GATE_CLOSED);
+        nectarGate.setPosition(open ? NECTAR_GATE_OPEN : NECTAR_GATE_CLOSED);
     }
 }

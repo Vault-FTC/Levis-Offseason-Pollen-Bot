@@ -144,11 +144,12 @@ public class Shooter extends Subsystem {
         return 0.15 + (degrees - 15) / (75 - 15) * (0.70 - 0.15);
     }
     public void closeGate() {
-        pollenGate.setPosition(0.1);
+        pollenGate.setPosition(0.175);
         nectarGate.setPosition(0.5);
     }
     public void openGate()  {
-        pollenGate.setPosition(0.2);
+        pollenGate.setPosition(0.28);
+
         nectarGate.setPosition(1.0);
     }
 

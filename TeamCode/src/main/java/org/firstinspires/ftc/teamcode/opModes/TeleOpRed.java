@@ -26,7 +26,7 @@ public class TeleOpRed extends LinearOpMode {
         intake = new Intake(hardwareMap);
         shooter = new Shooter(hardwareMap, drivebase, intake, gamepad1);
 
-        double pollenTargetSpeed = 950;
+        double pollenTargetSpeed = 1125;
         double nectarTargetSpeed = 1125;
         double pollenSpeedAdjustment = 0;
         double nectarSpeedAdjustment = 0;
@@ -34,7 +34,7 @@ public class TeleOpRed extends LinearOpMode {
         cellPosition = 1; //cell starts with blue alliance cell up, red alliance cell down.
 
         drivebase.getPinpoint().resetPosAndIMU();
-        drivebase.setCurrentPose(0, 0, 0);
+        drivebase.setCurrentPose(0, 0, Math.PI);   // the robot starts turned 180 degrees
 
         waitForStart();
 
@@ -42,6 +42,11 @@ public class TeleOpRed extends LinearOpMode {
 
         while (opModeIsActive()) {
             drivebase.update();
+
+            // Options: re-zero field-centric driving to the 180 degree starting orientation.
+            if (gamepad1.optionsWasPressed()) {
+                drivebase.resetHeading(180);
+            }
 
             double y = gamepad1.left_stick_y;
             double x = -gamepad1.left_stick_x * 1.1;
