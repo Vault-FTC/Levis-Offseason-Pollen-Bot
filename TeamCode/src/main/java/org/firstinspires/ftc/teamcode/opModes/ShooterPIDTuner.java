@@ -34,8 +34,8 @@ public class ShooterPIDTuner extends OpMode {
     }
 
     // Gate positions copied from Shooter.openGate()/closeGate(); keep them in sync if those change.
-    static final double POLLEN_GATE_CLOSED = 0.1;
-    static final double POLLEN_GATE_OPEN = 0.2;
+    static final double POLLEN_GATE_CLOSED = 0.175;
+    static final double POLLEN_GATE_OPEN = 0.26;
     static final double NECTAR_GATE_CLOSED = 0.5;
     static final double NECTAR_GATE_OPEN = 1.0;
 

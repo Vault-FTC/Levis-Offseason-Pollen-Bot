@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.opModes;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.FieldConstants;
 import org.firstinspires.ftc.teamcode.subsystems.Drivebase;
@@ -18,6 +19,9 @@ public class TeleOpRed extends LinearOpMode {
     double errorDeg;
     double rx;
     double cellPosition; // this tells us what position the hive is in. If 1, the upward cell is on the right when standing in the blue driver station. if zero, that side is down.
+    // Where this teleop's robot is placed at the start. Used when no auto has run, and by the gamepad2 Share reset.
+    // Kept per teleop so Red and Blue can use different poses if auto-aim needs them to.
+    Pose2D teleopStartPose = FieldConstants.TELEOP_START_POSE;
     Pose2D BlueGoalCaseOne = FieldConstants.BLUE_GOAL_CASE_ONE;
     Pose2D BlueGoalCaseTwo = FieldConstants.BLUE_GOAL_CASE_TWO;
 
@@ -27,24 +31,25 @@ public class TeleOpRed extends LinearOpMode {
         intake = new Intake(hardwareMap);
         shooter = new Shooter(hardwareMap, drivebase, intake, gamepad1);
 
-        double pollenTargetSpeed = 1125;
-        double nectarTargetSpeed = 1125;
+        double pollenTargetSpeed = 1225;
+        double nectarTargetSpeed = 1215;
         double pollenSpeedAdjustment = 0;
         double nectarSpeedAdjustment = 0;
         boolean pollenSelected = true;   // which shooter gamepad2's d-pad adjusts
         cellPosition = 1; //cell starts with blue alliance cell up, red alliance cell down.
 
         // Use the shared field frame (inches, origin bottom-left, center (70, 70)); see FieldConstants.
-        // If autonomous just ran, continue from where it left the robot; otherwise assume START_POSE.
+        // If autonomous has run since the Robot Controller app started, continue from the last pose it saved
+        // (it's kept, not cleared, so restarting teleop still uses it). Otherwise start at teleopStartPose
+        // (the robot placed turned 180 degrees from the autonomous start). Gamepad2 Share resets to teleopStartPose.
         if (PoseStorage.currentPose != null) {
-            drivebase.setCurrentPose(PoseStorage.currentPose);
-            PoseStorage.currentPose = null;   // use it once so a later teleop run starts fresh
+            drivebase.setCurrentPose(new Pose2D(DistanceUnit.INCH, PoseStorage.currentPose.getX(DistanceUnit.INCH), PoseStorage.currentPose.getY(DistanceUnit.INCH), AngleUnit.DEGREES,PoseStorage.currentPose.getHeading(AngleUnit.DEGREES) + 270));
         } else {
             drivebase.getPinpoint().resetPosAndIMU();
             sleep(300);   // let the Pinpoint finish its IMU reset before we write a pose to it
-            drivebase.setCurrentPose(FieldConstants.START_POSE);
+            drivebase.setCurrentPose(teleopStartPose);
         }
-        // Field direction the drive stick pushes toward (same feel as before: stick up = backward from the start orientation).
+        // Field direction the drive stick pushes toward.
         double stickUpHeadingRad = Math.toRadians(FieldConstants.TELEOP_STICK_UP_HEADING_DEG);
 
         waitForStart();
@@ -54,9 +59,14 @@ public class TeleOpRed extends LinearOpMode {
         while (opModeIsActive()) {
             drivebase.update();
 
-            // Options: re-zero the heading with the robot placed in its starting orientation.
+            // Options: re-zero the heading with the robot placed in the teleop starting orientation.
             if (gamepad1.optionsWasPressed()) {
-                drivebase.resetHeading(FieldConstants.START_POSE.getHeading(AngleUnit.DEGREES));
+                drivebase.resetHeading(teleopStartPose.getHeading(AngleUnit.DEGREES));
+            }
+            // Gamepad2 Share: the robot is at this teleop's normal starting spot (not where auto ended), so
+            // reset the full pose to it.
+            if (gamepad2.shareWasPressed()) {
+                drivebase.setCurrentPose(teleopStartPose);
             }
 
             double y = gamepad1.left_stick_y;

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.autonomi.redAutons;
+package org.firstinspires.ftc.teamcode.autonomi.blueAutons;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -19,7 +19,7 @@ import org.firstinspires.ftc.teamcode.subsystems.Shooter;
  * All positions are in the shared field frame (inches, field center at (70, 70)); see FieldConstants.
  */
 @Autonomous
-public class redAuto extends LinearOpMode {
+public class blueAuto extends LinearOpMode {
     static final double POLLEN_SPEED = 1225;
     static final double NECTAR_SPEED = 1215;
 
@@ -44,7 +44,7 @@ public class redAuto extends LinearOpMode {
         // Put the odometry in the shared field frame.
         drivebase.getPinpoint().resetPosAndIMU();
         sleep(300);   // let the Pinpoint finish its IMU reset before we write a pose to it
-        Pose2D start = new Pose2D(DistanceUnit.INCH, 60, 8, AngleUnit.DEGREES, 90);
+        Pose2D start = new Pose2D(DistanceUnit.INCH, 86, 132, AngleUnit.DEGREES, 270);
         drivebase.setCurrentPose(start);
         PoseStorage.currentPose = start;
 
@@ -55,17 +55,17 @@ public class redAuto extends LinearOpMode {
                 startHeadingDeg);
         // Leave by decreasing X while keeping the same Y and heading.
         Location moveLeft = new Location(
-                24,
-                8,
+                105,
+                130,
                 startHeadingDeg);
         Location driveForwards = new Location(
-                32,
-                99,
-                90);
+                105,
+                45,
+                270);
         Location park = new Location(
-                15,
-                99,
-                90);
+                125,
+                45,
+                270);
 
         shooter.setTargetSpeeds(POLLEN_SPEED, NECTAR_SPEED);
 

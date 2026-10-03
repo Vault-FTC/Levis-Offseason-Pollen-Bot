@@ -37,11 +37,16 @@ public final class FieldConstants {
     public static final Pose2D START_POSE =
             new Pose2D(DistanceUnit.INCH, 60, 8, AngleUnit.DEGREES, 90);
 
-    // Field direction (degrees) that pushing the teleop drive stick UP moves the robot toward.
-    // Set to the opposite of the start heading, which matches the current teleop: the robot starts
-    // facing the drivers, so stick up drives the robot backward from its starting orientation.
-    public static final double TELEOP_STICK_UP_HEADING_DEG =
-            normalizeDegrees(START_POSE.getHeading(AngleUnit.DEGREES) + 180);
+    // Pose a standalone teleop starts from. The robot is placed turned 180 degrees from the autonomous start,
+    // so this uses the true (reversed) heading. That keeps the heading consistent with the pose autonomous
+    // hands over through PoseStorage, which is also a true heading.
+    public static final Pose2D TELEOP_START_POSE =
+            new Pose2D(DistanceUnit.INCH, START_POSE.getX(DistanceUnit.INCH), START_POSE.getY(DistanceUnit.INCH),
+                    AngleUnit.DEGREES, normalizeDegrees(START_POSE.getHeading(AngleUnit.DEGREES) + 180));
+
+    // Field direction (degrees) that pushing the teleop drive stick UP moves the robot toward. With a true
+    // heading this is the same whether teleop starts on its own or after autonomous.
+    public static final double TELEOP_STICK_UP_HEADING_DEG = normalizeDegrees(START_POSE.getHeading(AngleUnit.DEGREES));
 
     // Blue goal aim points: 105 cm in front of and 83 cm (or 60 cm) to the left of the robot's
     // starting position, as originally measured. Converted here to field inches.

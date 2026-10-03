@@ -28,6 +28,7 @@ public class Shooter extends Subsystem {
     double kD = 0.0015; //check this
     CaseModes currentMode = CaseModes.OFF;
     boolean manualGateOpen = false;
+    boolean rumbleEnabled = true;   // teleop rumbles when the shooter is up to speed; autos turn this off
     boolean shootReady = false;   // latched once the flywheels reach speed in SHOOT; cleared when leaving SHOOT
     PIDFCoefficients pollenPIDF = new PIDFCoefficients(160, 0, 0, 15.5);
     PIDFCoefficients nectarPIDF = new PIDFCoefficients(300, 0, 0, 14.996);
@@ -79,7 +80,7 @@ public class Shooter extends Subsystem {
                 if (shootReady) {
                     gateOpen = true;
                     intake.setState(Intake.CaseModes.ON);
-                    gamepad1.rumble(1000);
+                    if (rumbleEnabled) gamepad1.rumble(1000);
                 }
                 break;
             case SHOOT_GATE_CLOSED:
@@ -100,6 +101,11 @@ public class Shooter extends Subsystem {
         } else {
             closeGate();
         }
+    }
+
+    /** Turns the "up to speed" controller rumble on or off. On by default; autos turn it off. */
+    public void setRumbleEnabled(boolean enabled) {
+        rumbleEnabled = enabled;
     }
 
     /** Driver override: while true, the gates are held open regardless of the shooter mode or flywheel speed. */
@@ -149,11 +155,11 @@ public class Shooter extends Subsystem {
         return 0.15 + (degrees - 15) / (75 - 15) * (0.70 - 0.15);
     }
     public void closeGate() {
-        pollenGate.setPosition(0.175);
-        nectarGate.setPosition(0.5);
+        pollenGate.setPosition(0.1);
+        nectarGate.setPosition(0.7);
     }
     public void openGate()  {
-        pollenGate.setPosition(0.28);
+        pollenGate.setPosition(0.0);
 
         nectarGate.setPosition(1.0);
     }
